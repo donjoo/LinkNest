@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from apps.users.api.views import UserViewSet
@@ -17,4 +18,7 @@ router.register("short-urls", ShortURLViewSet)
 
 
 app_name = "api"
-urlpatterns = router.urls
+urlpatterns = [
+    path("", include(router.urls)),
+    path("", include("apps.organizations.urls")),
+]

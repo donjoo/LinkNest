@@ -130,3 +130,32 @@ class InviteAcceptSerializer(serializers.Serializer):
                 raise serializers.ValidationError("This invitation has already been accepted.")
         
         return value
+
+
+class InviteDeclineSerializer(serializers.Serializer):
+    """Serializer for declining invites."""
+    token = serializers.CharField(max_length=64)
+
+    def validate_token(self, value):
+        """Validate the invite token."""
+        try:
+            invite = Invite.objects.get(token=value)
+        except Invite.DoesNotExist:
+            raise serializers.ValidationError("Invalid invitation token.")
+        
+        if invite.used:
+            raise serializers.ValidationError("This invitation has already been used.")
+        
+        return value
+
+
+class InviteAcceptResponseSerializer(serializers.Serializer):
+    """Serializer for invite accept response."""
+    message = serializers.CharField()
+    organization = serializers.CharField()
+    membership = OrganizationMembershipSerializer(required=False)
+
+
+class InviteDeclineResponseSerializer(serializers.Serializer):
+    """Serializer for invite decline response."""
+    message = serializers.CharField()

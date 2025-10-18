@@ -20,7 +20,10 @@ from .serializers import (
     UserSerializer,
     InviteSerializer,
     InviteCreateSerializer,
-    InviteAcceptSerializer
+    InviteAcceptSerializer,
+    InviteDeclineSerializer,
+    InviteAcceptResponseSerializer,
+    InviteDeclineResponseSerializer
 )
 
 User = get_user_model()
@@ -285,7 +288,7 @@ The LinkNest Team
 
 class InviteAcceptView(APIView):
     """View for accepting organization invitations."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = []  # Allow both authenticated and unauthenticated users
 
     def post(self, request):
         """Accept an invitation using a token."""
@@ -300,34 +303,56 @@ class InviteAcceptView(APIView):
             invite = Invite.objects.get(token=token)
         except Invite.DoesNotExist:
             return Response(
-                {"detail": "Invalid invitation token."},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "This invitation link is invalid or has expired."},
+                status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Check if invitation is valid
         if not invite.is_valid():
             if invite.is_expired():
                 return Response(
-                    {"detail": "This invitation has expired."},
+                    {"error": "This invitation link is invalid or has expired."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             elif invite.used:
                 return Response(
-                    {"detail": "This invitation has already been used."},
+                    {"error": "This invitation link is invalid or has expired."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             elif invite.accepted:
                 return Response(
-                    {"detail": "This invitation has already been accepted."},
+                    {"error": "This invitation link is invalid or has expired."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        # Check if user is already a member
+        # If user is not authenticated, return 401 with requires_auth flag
+        if not request.user.is_authenticated:
+            # Check if a user with this email already exists
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            user_exists = User.objects.filter(email=invite.email).exists()
+            
+            return Response(
+                {
+                    "error": "Authentication required to accept invitation.",
+                    "requires_auth": True,
+                    "token": token,
+                    "user_exists": user_exists,
+                    "invite_email": invite.email,
+                    "organization_name": invite.organization.name,
+                    "role": invite.role
+                },
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Check if user is already a member of this organization
         if OrganizationMembership.objects.filter(
             user=request.user,
             organization=invite.organization
         ).exists():
             return Response(
-                {"detail": "You are already a member of this organization."},
+                {"error": "You are already a member of this organization."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -345,6 +370,298 @@ class InviteAcceptView(APIView):
         
         membership_serializer = OrganizationMembershipSerializer(membership)
         return Response({
-            "detail": "Successfully joined the organization!",
+            "message": "Invite accepted successfully",
+            "organization": invite.organization.name,
             "membership": membership_serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class InviteDeclineView(APIView):
+    """View for declining organization invitations."""
+    permission_classes = []  # Allow both authenticated and unauthenticated users
+
+    def post(self, request):
+        """Decline an invitation using a token."""
+        serializer = InviteDeclineSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        token = serializer.validated_data['token']
+        
+        try:
+            invite = Invite.objects.get(token=token)
+        except Invite.DoesNotExist:
+            return Response(
+                {"error": "This invitation link is invalid or has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if invitation has already been used
+        if invite.used:
+            return Response(
+                {"error": "This invitation link is invalid or has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Mark invite as used and declined
+        invite.used = True
+        invite.accepted = False
+        invite.save()
+        
+        return Response({
+            "message": "Invite declined"
+        }, status=status.HTTP_200_OK)
+
+
+class InviteRegisterView(APIView):
+    """View for registering a new user from an invitation link."""
+    permission_classes = []  # Allow unauthenticated users
+
+    def post(self, request):
+        """Register a new user and automatically accept the invitation."""
+        from django.contrib.auth import get_user_model
+        from apps.users.auth_serializers import RegisterSerializer
+        from apps.users.otp_models import OTP
+        
+        User = get_user_model()
+        
+        # Get token from request
+        token = request.data.get('token')
+        if not token:
+            return Response(
+                {"error": "Token is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate the invitation
+        try:
+            invite = Invite.objects.get(token=token)
+        except Invite.DoesNotExist:
+            return Response(
+                {"error": "This invitation link is invalid or has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if invitation is valid
+        if not invite.is_valid():
+            if invite.is_expired():
+                return Response(
+                    {"error": "This invitation link is invalid or has expired."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif invite.used:
+                return Response(
+                    {"error": "This invitation link is invalid or has expired."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif invite.accepted:
+                return Response(
+                    {"error": "This invitation link is invalid or has expired."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Check if user already exists
+        if User.objects.filter(email=invite.email).exists():
+            return Response(
+                {"error": "A user with this email already exists. Please log in instead."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Prepare registration data
+        registration_data = {
+            'email': invite.email,
+            'first_name': request.data.get('first_name', ''),
+            'last_name': request.data.get('last_name', ''),
+            'password': request.data.get('password'),
+            'password_confirm': request.data.get('password_confirm')
+        }
+        
+        # Validate registration data
+        serializer = RegisterSerializer(data=registration_data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create the user
+        user = serializer.save()
+        
+        # Keep user inactive until email verification
+        user.is_active = False
+        user.save()
+        
+        # Generate OTP for email verification
+        otp = OTP.generate_otp(user)
+        
+        # Send OTP email with invitation context
+        self._send_invitation_otp_email(user, otp, invite)
+        
+        # Store the invitation token in the user's session or create a temporary record
+        # For now, we'll store it in a custom field or use a different approach
+        # The user will need to verify their email first, then accept the invitation
+        
+        return Response({
+            'message': 'Registration successful! Please check your email for verification code.',
+            'user': {
+                'id': str(user.id),
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_active': user.is_active
+            },
+            'invitation': {
+                'organization_name': invite.organization.name,
+                'role': invite.role,
+                'token': token
+            },
+            'otp_expires_at': otp.expires_at,
+            'time_remaining': otp.get_time_remaining(),
+            'next_step': 'verify_email_then_accept_invitation'
+        }, status=status.HTTP_201_CREATED)
+    
+    def _send_invitation_otp_email(self, user, otp, invite):
+        """Send OTP email with invitation context."""
+        subject = f'Verify Your Email - Join {invite.organization.name} on LinkNest'
+        
+        message = f"""
+        Hello {user.first_name or 'User'},
+
+        You've been invited to join {invite.organization.name} as {invite.role} on LinkNest!
+
+        To complete your registration and accept the invitation, please verify your email address using the code below:
+
+        Verification Code: {otp.code}
+
+        This code will expire in 10 minutes.
+
+        After verifying your email, you'll automatically be added to {invite.organization.name}.
+
+        If you didn't request this invitation, please ignore this email.
+
+        Best regards,
+        The LinkNest Team
+        """
+        
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # Log the error but don't expose it to the user
+            print(f"Failed to send invitation OTP email: {e}")
+
+
+class InviteAcceptAfterVerificationView(APIView):
+    """View for accepting invitation after email verification."""
+    permission_classes = []  # Allow unauthenticated users (they'll be verified via OTP)
+
+    def post(self, request):
+        """Accept invitation after email verification."""
+        from django.contrib.auth import get_user_model
+        from apps.users.otp_models import OTP
+        
+        User = get_user_model()
+        
+        # Get token and OTP from request
+        token = request.data.get('token')
+        otp_code = request.data.get('otp_code')
+        
+        if not token or not otp_code:
+            return Response(
+                {"error": "Token and OTP code are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate the invitation
+        try:
+            invite = Invite.objects.get(token=token)
+        except Invite.DoesNotExist:
+            return Response(
+                {"error": "This invitation link is invalid or has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if invitation is valid
+        if not invite.is_valid():
+            return Response(
+                {"error": "This invitation link is invalid or has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Find the user
+        try:
+            user = User.objects.get(email=invite.email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found. Please register first."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verify OTP
+        try:
+            otp = OTP.objects.get(user=user, code=otp_code, is_used=False)
+            if otp.is_expired():
+                return Response(
+                    {"error": "OTP code has expired. Please request a new one."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except OTP.DoesNotExist:
+            return Response(
+                {"error": "Invalid OTP code."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Mark OTP as used
+        otp.is_used = True
+        otp.save()
+        
+        # Activate user
+        user.is_active = True
+        user.save()
+        
+        # Check if user is already a member of this organization
+        if OrganizationMembership.objects.filter(
+            user=user,
+            organization=invite.organization
+        ).exists():
+            return Response(
+                {"error": "You are already a member of this organization."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create membership
+        membership = OrganizationMembership.objects.create(
+            user=user,
+            organization=invite.organization,
+            role=invite.role
+        )
+        
+        # Mark invite as used and accepted
+        invite.used = True
+        invite.accepted = True
+        invite.save()
+        
+        # Generate JWT tokens for the user
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+        
+        membership_serializer = OrganizationMembershipSerializer(membership)
+        return Response({
+            "message": "Email verified and invitation accepted successfully!",
+            "organization": invite.organization.name,
+            "membership": membership_serializer.data,
+            "user": {
+                'id': str(user.id),
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_active': user.is_active
+            },
+            "tokens": {
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+            }
         }, status=status.HTTP_200_OK)
