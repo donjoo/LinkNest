@@ -1,0 +1,12 @@
+---
+description: React Frontend Rules
+globs: ["frontend/src/**/*.{js,jsx}"]
+alwaysApply: true
+---
+
+# React Rules
+- Use functional components and hooks.
+- Place modular components under `/src/components/`.
+- Use ESLint (Airbnb Style) + Prettier.
+- CSS scoped per page/component.
+- Always type props and state when using TypeScript (optional).

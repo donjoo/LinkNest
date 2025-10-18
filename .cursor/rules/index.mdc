@@ -1,0 +1,23 @@
+---
+description: LinkNest Repository Rules – Always Apply
+alwaysApply: true
+---
+
+# Overview
+This project is a Django + React namespaced URL Shortener with organizational roles (Admin, Editor, Viewer), namespace-based URL shortening, and S3 storage.
+
+# Architecture
+- Backend: Django + Celery + PostgreSQL
+- Frontend: React + Vite
+- Object Storage: AWS S3
+- Auth: Django AllAuth / JWT
+- Deployment: Docker + Compose
+- Dev logging: Console + File (rotating handler)
+
+# Code Conventions
+- Follow PEP 8, DRY, KISS, YAGNI.
+- Use class-based views except where function views increase clarity.
+- Maintain modular Django apps with clear `models`, `serializers`, `views`, `urls`, `tests`.
+- Do not use `print()` for logs – use `logging`.
+- Enforce type hints and docstrings.
+- Write unit tests for every app in `tests/`.

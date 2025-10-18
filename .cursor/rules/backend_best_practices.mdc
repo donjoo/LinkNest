@@ -1,0 +1,19 @@
+---
+description: Django Backend Rules
+globs: ["backend/**/*.py"]
+alwaysApply: true
+---
+
+# Django Rules
+- Follow PEP 8 and docstring style.
+- Use class-based views, DRF serializers, and ORM queries safely.
+- Validate data in serializers – not views.
+- Create helper methods for reusable logic.
+- Keep namespace and organization models distinct.
+- Apply REST naming e.g. `/api/v1/organizations/`.
+
+# Logging
+- Configure logging in `backend/config/settings/base.py`.
+- Use `logging.getLogger(__name__)`.
+- Always log exceptions via `exc_info=True`.
+- Use rotating file logging for production.

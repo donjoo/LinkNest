@@ -1,0 +1,34 @@
+---
+description: Django per-app structure and API separation
+globs: ["backend/hirethon_template/**"]
+alwaysApply: true
+---
+
+# App Creation Rules
+When creating a new Django app under `backend/hirethon_template/`, follow this structure:
+
+my_app/
+├── __init__.py
+├── admin.py
+├── apps.py
+├── api/
+│   ├── __init__.py
+│   ├── serializers.py
+│   └── views.py
+├── context_processors.py      # Optional, only if needed
+├── forms.py                   # All app forms must go here
+├── managers.py                # Custom model managers
+├── migrations/
+│   ├── __init__.py
+├── models.py
+├── tasks.py                   # Celery or async tasks
+├── tests/
+│   ├── __init__.py
+│   ├── test_models.py
+│   ├── test_api.py
+│   ├── test_views.py
+│   ├── test_forms.py
+│   ├── test_urls.py
+│   └── factories.py
+├── urls.py
+└── views.py                   # Regular Django views only
