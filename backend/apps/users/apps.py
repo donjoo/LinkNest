@@ -7,7 +7,5 @@ class UsersConfig(AppConfig):
     verbose_name = _("Users")
 
     def ready(self):
-        try:
-            import apps.users.signals  # noqa: F401
-        except ImportError:
-            pass
+        # Signals are now handled by the organizations app
+        pass

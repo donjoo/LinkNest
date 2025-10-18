@@ -7,7 +7,7 @@ from django.views import defaults as default_views
 from django.views.generic import TemplateView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
-from apps.links.redirect_views import redirect_short_url
+from apps.urls.redirect_views import redirect_short_url
 
 # Customize admin site
 admin.site.site_header = settings.ADMIN_SITE_HEADER

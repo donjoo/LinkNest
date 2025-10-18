@@ -1,3 +1,8 @@
+"""
+URL redirect views.
+
+Moved from apps.links.redirect_views - handles short URL redirects.
+"""
 from django.shortcuts import get_object_or_404, redirect
 from django.http import Http404
 from .models import ShortURL

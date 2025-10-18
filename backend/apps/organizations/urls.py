@@ -1,13 +1,16 @@
+"""
+Organization URL patterns.
+
+Moved from apps.links.urls - handles organization and membership endpoints.
+"""
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import OrganizationViewSet, NamespaceViewSet, ShortURLViewSet
+from .views import OrganizationViewSet
 
-app_name = "links"
+app_name = "organizations"
 
 router = DefaultRouter()
 router.register(r'organizations', OrganizationViewSet)
-router.register(r'namespaces', NamespaceViewSet)
-router.register(r'short-urls', ShortURLViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -2,7 +2,8 @@ from django.conf import settings
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from apps.users.api.views import UserViewSet
-from apps.links.views import OrganizationViewSet, NamespaceViewSet, ShortURLViewSet
+from apps.organizations.views import OrganizationViewSet
+from apps.urls.views import NamespaceViewSet, ShortURLViewSet
 
 if settings.DEBUG:
     router = DefaultRouter()

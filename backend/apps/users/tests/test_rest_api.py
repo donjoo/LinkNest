@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model  # pylint: disable=ungrouped-impo
 from django.test.client import Client
 from django.urls import reverse
 
-from apps.links.models import Organization, OrganizationMembership
+from apps.organizations.models import Organization, OrganizationMembership
 
 pytestmark = pytest.mark.django_db
 User = get_user_model()

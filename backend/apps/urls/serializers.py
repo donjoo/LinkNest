@@ -1,39 +1,17 @@
+"""
+URL serializers.
+
+Moved from apps.links.serializers - handles namespace and short URL serialization.
+"""
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Organization, OrganizationMembership, Namespace, ShortURL
+from .models import Namespace, ShortURL
 
 User = get_user_model()
 
 
-class OrganizationMembershipSerializer(serializers.ModelSerializer):
-    user_email = serializers.EmailField(source="user.email", read_only=True)
-    user_full_name = serializers.CharField(source="user.full_name", read_only=True)
-
-    class Meta:
-        model = OrganizationMembership
-        fields = ["id", "user", "user_email", "user_full_name", "role", "created_at"]
-        read_only_fields = ["id", "created_at"]
-
-
-class OrganizationSerializer(serializers.ModelSerializer):
-    owner_email = serializers.EmailField(source="owner.email", read_only=True)
-    owner_full_name = serializers.CharField(source="owner.full_name", read_only=True)
-    member_count = serializers.SerializerMethodField()
-    memberships = OrganizationMembershipSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Organization
-        fields = [
-            "id", "name", "owner", "owner_email", "owner_full_name",
-            "member_count", "memberships", "created_at", "updated_at"
-        ]
-        read_only_fields = ["id", "owner", "created_at", "updated_at"]
-
-    def get_member_count(self, obj):
-        return obj.memberships.count()
-
-
 class NamespaceSerializer(serializers.ModelSerializer):
+    """Serializer for namespaces."""
     organization_name = serializers.CharField(source="organization.name", read_only=True)
     short_url_count = serializers.SerializerMethodField()
 
@@ -56,6 +34,7 @@ class NamespaceSerializer(serializers.ModelSerializer):
 
 
 class ShortURLSerializer(serializers.ModelSerializer):
+    """Serializer for short URLs."""
     namespace_name = serializers.CharField(source="namespace.name", read_only=True)
     organization_name = serializers.CharField(source="namespace.organization.name", read_only=True)
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
@@ -113,12 +92,3 @@ class ShortURLCreateSerializer(serializers.ModelSerializer):
             validated_data["short_code"] = ShortURL.generate_short_code()
         
         return super().create(validated_data)
-
-
-class UserSerializer(serializers.ModelSerializer):
-    """Simple user serializer for displaying user information."""
-    
-    class Meta:
-        model = User
-        fields = ["id", "email", "first_name", "last_name", "full_name"]
-        read_only_fields = ["id", "email", "first_name", "last_name", "full_name"]

@@ -1,11 +1,13 @@
 """
-Django signals for user-related events.
+Organization signals.
+
+Moved from apps.users.signals - handles organization creation after user signup.
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 
-from apps.links.models import Organization, OrganizationMembership
+from .models import Organization, OrganizationMembership
 
 User = get_user_model()
 
