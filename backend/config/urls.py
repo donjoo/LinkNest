@@ -7,6 +7,7 @@ from django.views import defaults as default_views
 from django.views.generic import TemplateView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
+from apps.links.redirect_views import redirect_short_url
 
 # Customize admin site
 admin.site.site_header = settings.ADMIN_SITE_HEADER
@@ -22,12 +23,7 @@ urlpatterns = [
     # User management
     path("users/", include("apps.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
-    # Your stuff: custom urls includes go here
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-# API URLS
-urlpatterns += [
-    # API base url
+    # API URLS - must be before short URL redirects
     path("api/", include("config.api_router")),
     # DRF auth token
     path("auth-token/", obtain_auth_token),
@@ -41,7 +37,10 @@ urlpatterns += [
     path('rest-auth/registration/', include('dj_rest_auth.registration.urls')),
     # Custom auth endpoints
     path("api/auth/", include("apps.users.auth_urls")),
-]
+    # Short URL redirects - must be after API URLs to avoid conflicts
+    path("<str:namespace_name>/<str:short_code>/", redirect_short_url, name="short_url_redirect"),
+    # Your stuff: custom urls includes go here
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit

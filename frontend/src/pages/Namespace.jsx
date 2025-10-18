@@ -1,0 +1,329 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { namespacesAPI, shortUrlsAPI } from '../services/api';
+
+const Namespace = () => {
+  const { id } = useParams();
+  const [namespace, setNamespace] = useState(null);
+  const [shortUrls, setShortUrls] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newShortUrl, setNewShortUrl] = useState({
+    original_url: '',
+    short_code: '',
+    title: '',
+    description: ''
+  });
+
+  useEffect(() => {
+    if (id) {
+      fetchNamespaceData();
+    }
+  }, [id]);
+
+  const fetchNamespaceData = async () => {
+    try {
+      setLoading(true);
+      const [namespaceResponse, shortUrlsResponse] = await Promise.all([
+        namespacesAPI.get(id),
+        shortUrlsAPI.getByNamespace(id)
+      ]);
+      
+      setNamespace(namespaceResponse.data);
+      setShortUrls(shortUrlsResponse.data);
+    } catch (err) {
+      setError('Failed to fetch namespace data');
+      console.error('Error fetching namespace data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateShortUrl = async (e) => {
+    e.preventDefault();
+    if (!newShortUrl.original_url.trim()) return;
+
+    try {
+      const response = await shortUrlsAPI.create({
+        ...newShortUrl,
+        namespace: id
+      });
+      setShortUrls([...shortUrls, response.data]);
+      setNewShortUrl({
+        original_url: '',
+        short_code: '',
+        title: '',
+        description: ''
+      });
+      setShowCreateForm(false);
+    } catch (err) {
+      setError('Failed to create short URL');
+      console.error('Error creating short URL:', err);
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    // You could add a toast notification here
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+          <p className="mt-4 text-slate-400">Loading namespace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !namespace) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-16 w-16 text-red-400 mx-auto mb-4">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">Error</h3>
+          <p className="text-slate-400 mb-6">{error || 'Namespace not found'}</p>
+          <Link
+            to="/dashboard"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Navigation */}
+      <nav className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-4">
+              <Link
+                to={`/organizations/${namespace.organization}`}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </Link>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/50">
+                  <span className="text-white font-bold text-lg">
+                    {namespace.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-white">{namespace.name}</h1>
+                  <p className="text-sm text-slate-400">Namespace</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8 px-4">
+        {/* Namespace Header */}
+        <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-8 mb-8 backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-2">{namespace.name}</h2>
+              {namespace.description && (
+                <p className="text-slate-300 mb-2">{namespace.description}</p>
+              )}
+              <p className="text-slate-400 text-sm">
+                Organization: {namespace.organization_name}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-slate-400 text-sm">Short URLs</p>
+              <p className="text-white font-medium text-2xl">
+                {shortUrls.length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Short URLs Section */}
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-xl">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-2xl font-bold text-white">Short URLs</h3>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-purple-500/25"
+            >
+              <svg className="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Create Short URL
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-6 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {showCreateForm && (
+            <div className="mb-8 bg-slate-700/50 border border-slate-600/50 p-6 rounded-xl">
+              <h4 className="text-lg font-semibold text-white mb-4">Create New Short URL</h4>
+              <form onSubmit={handleCreateShortUrl} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Original URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={newShortUrl.original_url}
+                    onChange={(e) => setNewShortUrl({...newShortUrl, original_url: e.target.value})}
+                    placeholder="https://example.com"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Custom Short Code (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newShortUrl.short_code}
+                    onChange={(e) => setNewShortUrl({...newShortUrl, short_code: e.target.value})}
+                    placeholder="Leave empty for auto-generation"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Title (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newShortUrl.title}
+                    onChange={(e) => setNewShortUrl({...newShortUrl, title: e.target.value})}
+                    placeholder="Short description"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Description (optional)
+                  </label>
+                  <textarea
+                    value={newShortUrl.description}
+                    onChange={(e) => setNewShortUrl({...newShortUrl, description: e.target.value})}
+                    placeholder="More details about this URL"
+                    rows={3}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    Create
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setNewShortUrl({
+                        original_url: '',
+                        short_code: '',
+                        title: '',
+                        description: ''
+                      });
+                    }}
+                    className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {shortUrls.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="mx-auto h-16 w-16 text-slate-400 mb-4">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">No short URLs yet</h3>
+              <p className="text-slate-400">Create your first short URL to get started.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {shortUrls.map((shortUrl) => (
+                <div key={shortUrl.id} className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-6 hover:border-purple-500/50 transition-all duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="text-lg font-semibold text-white">
+                          {shortUrl.title || 'Untitled'}
+                        </h4>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          shortUrl.is_active
+                            ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                            : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                        }`}>
+                          {shortUrl.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      <p className="text-slate-400 text-sm mb-2 break-all">
+                        {shortUrl.original_url}
+                      </p>
+                      {shortUrl.description && (
+                        <p className="text-slate-500 text-sm mb-3">{shortUrl.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-slate-500">
+                        <span>Created: {new Date(shortUrl.created_at).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>{shortUrl.click_count} clicks</span>
+                        <span>•</span>
+                        <span>By: {shortUrl.created_by_email}</span>
+                      </div>
+                    </div>
+                    <div className="ml-6 flex flex-col gap-2">
+                      <div className="bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 min-w-[200px]">
+                        <p className="text-xs text-slate-400 mb-1">Short URL</p>
+                        <p className="text-purple-400 font-mono text-sm break-all">
+                          {shortUrl.full_short_url}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(shortUrl.full_short_url)}
+                        className="bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 hover:border-purple-500/50 text-purple-400 hover:text-purple-300 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                      >
+                        <svg className="h-4 w-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Namespace;

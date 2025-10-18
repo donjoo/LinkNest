@@ -67,4 +67,35 @@ export const authAPI = {
   refreshToken: (refreshToken) => api.post('/auth/token/refresh/', { refresh: refreshToken }),
 };
 
+// Organizations API functions
+export const organizationsAPI = {
+  list: () => api.get('/organizations/'),
+  create: (data) => api.post('/organizations/', data),
+  get: (id) => api.get(`/organizations/${id}/`),
+  update: (id, data) => api.put(`/organizations/${id}/`, data),
+  delete: (id) => api.delete(`/organizations/${id}/`),
+  getMembers: (id) => api.get(`/organizations/${id}/members/`),
+  inviteMember: (id, data) => api.post(`/organizations/${id}/invite_member/`, data),
+};
+
+// Namespaces API functions
+export const namespacesAPI = {
+  list: () => api.get('/namespaces/'),
+  create: (data) => api.post('/namespaces/', data),
+  get: (id) => api.get(`/namespaces/${id}/`),
+  update: (id, data) => api.put(`/namespaces/${id}/`, data),
+  delete: (id) => api.delete(`/namespaces/${id}/`),
+};
+
+// Short URLs API functions
+export const shortUrlsAPI = {
+  list: () => api.get('/short-urls/'),
+  create: (data) => api.post('/short-urls/', data),
+  get: (id) => api.get(`/short-urls/${id}/`),
+  update: (id, data) => api.put(`/short-urls/${id}/`, data),
+  delete: (id) => api.delete(`/short-urls/${id}/`),
+  getByNamespace: (namespaceId) => api.get(`/short-urls/by_namespace/?namespace_id=${namespaceId}`),
+  redirect: (id) => api.post(`/short-urls/${id}/redirect/`),
+};
+
 export default api;
