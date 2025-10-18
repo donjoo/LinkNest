@@ -20,7 +20,7 @@ urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
     # User management
-    path("users/", include("hirethon_template.users.urls", namespace="users")),
+    path("users/", include("apps.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
     # Your stuff: custom urls includes go here
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
@@ -39,6 +39,8 @@ urlpatterns += [
     ),
     path('rest-auth/', include('dj_rest_auth.urls')),
     path('rest-auth/registration/', include('dj_rest_auth.registration.urls')),
+    # Custom auth endpoints
+    path("api/auth/", include("apps.users.auth_urls")),
 ]
 
 if settings.DEBUG:

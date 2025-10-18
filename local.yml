@@ -72,7 +72,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ./compose/local/frontend/Dockerfile
+      dockerfile: ../compose/local/frontend/Dockerfile
     image: hirethon_template_local_frontend
     container_name: hirethon_template_local_frontend
     volumes:

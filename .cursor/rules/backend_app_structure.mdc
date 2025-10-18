@@ -1,9 +1,6 @@
 ---
-description: Django per-app structure and API separation
-globs: ["backend/hirethon_template/**"]
-alwaysApply: true
+alwaysApply: false
 ---
-
 # App Creation Rules
 When creating a new Django app under `backend/hirethon_template/`, follow this structure:
 
