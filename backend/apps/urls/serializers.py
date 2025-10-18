@@ -110,8 +110,9 @@ class ShortURLCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShortURL
         fields = [
-            "namespace", "original_url", "short_code", "title", "description", "expiry_date"
+            "id", "namespace", "original_url", "short_code", "title", "description", "expiry_date"
         ]
+        read_only_fields = ["id"]
         extra_kwargs = {
             'title': {'required': False, 'allow_blank': True},
             'description': {'required': False, 'allow_blank': True},

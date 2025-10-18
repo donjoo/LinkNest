@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { namespacesAPI, shortUrlsAPI } from '../services/api';
+import { namespacesAPI, shortUrlsAPI, organizationsAPI } from '../services/api';
 
 const Namespace = () => {
   const { id } = useParams();
@@ -24,12 +24,20 @@ const Namespace = () => {
     description: '',
     expiry_date: ''
   });
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     if (id) {
       fetchNamespaceData();
     }
   }, [id]);
+
+  // Helper functions for role-based UI visibility
+  const isAdmin = userRole === 'admin';
+  const isEditor = userRole === 'editor';
+  const isViewer = userRole === 'viewer';
+  const canCreateShortUrls = isAdmin || isEditor;
+  const canEditShortUrls = isAdmin || isEditor;
 
   const fetchNamespaceData = async () => {
     try {
@@ -41,6 +49,16 @@ const Namespace = () => {
       
       setNamespace(namespaceResponse.data);
       setShortUrls(shortUrlsResponse.data);
+      
+      // Get user role from the organization
+      if (namespaceResponse.data.organization) {
+        try {
+          const orgResponse = await organizationsAPI.get(namespaceResponse.data.organization);
+          setUserRole(orgResponse.data.current_user_role);
+        } catch (orgErr) {
+          console.log('Could not fetch organization data for role:', orgErr);
+        }
+      }
     } catch (err) {
       setError('Failed to fetch namespace data');
       console.error('Error fetching namespace data:', err);
@@ -81,7 +99,9 @@ const Namespace = () => {
       setError(null); // Clear any previous errors
     } catch (err) {
       console.error('Error creating short URL:', err);
-      if (err.response?.data) {
+      if (err.response?.status === 403) {
+        setError('You do not have permission to create short URLs. Only organization admins and editors can create short URLs.');
+      } else if (err.response?.data) {
         // Show specific error messages from the backend
         const errorMessages = [];
         if (err.response.data.non_field_errors) {
@@ -149,7 +169,9 @@ const Namespace = () => {
       setError(null);
     } catch (err) {
       console.error('Error updating short URL:', err);
-      if (err.response?.data) {
+      if (err.response?.status === 403) {
+        setError('You do not have permission to update short URLs. Only organization admins and editors can manage short URLs.');
+      } else if (err.response?.data) {
         const errorMessages = [];
         if (err.response.data.non_field_errors) {
           errorMessages.push(...err.response.data.non_field_errors);
@@ -174,8 +196,13 @@ const Namespace = () => {
     try {
       await shortUrlsAPI.delete(shortUrlId);
       setShortUrls(shortUrls.filter(url => url.id !== shortUrlId));
+      setError(null); // Clear any previous errors
     } catch (err) {
-      setError('Failed to delete short URL');
+      if (err.response?.status === 403) {
+        setError('You do not have permission to delete short URLs. Only organization admins and editors can manage short URLs.');
+      } else {
+        setError('Failed to delete short URL');
+      }
       console.error('Error deleting short URL:', err);
     }
   };
@@ -271,15 +298,17 @@ const Namespace = () => {
         <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-xl">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-2xl font-bold text-white">Short URLs</h3>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-purple-500/25"
-            >
-              <svg className="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Create Short URL
-            </button>
+            {canCreateShortUrls && (
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-purple-500/25"
+              >
+                <svg className="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Create Short URL
+              </button>
+            )}
           </div>
 
           {error && (
@@ -537,24 +566,28 @@ const Namespace = () => {
                           </svg>
                           Copy
                         </button>
-                        <button
-                          onClick={() => handleEditShortUrl(shortUrl)}
-                          className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 p-2 rounded-lg transition-all duration-200"
-                          title="Edit short URL"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteShortUrl(shortUrl.id)}
-                          className="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 p-2 rounded-lg transition-all duration-200"
-                          title="Delete short URL"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        {canEditShortUrls && (
+                          <>
+                            <button
+                              onClick={() => handleEditShortUrl(shortUrl)}
+                              className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 p-2 rounded-lg transition-all duration-200"
+                              title="Edit short URL"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteShortUrl(shortUrl.id)}
+                              className="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 p-2 rounded-lg transition-all duration-200"
+                              title="Delete short URL"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

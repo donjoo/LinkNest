@@ -28,17 +28,31 @@ class OrganizationSerializer(serializers.ModelSerializer):
     owner_full_name = serializers.CharField(source="owner.full_name", read_only=True)
     member_count = serializers.SerializerMethodField()
     memberships = OrganizationMembershipSerializer(many=True, read_only=True)
+    current_user_role = serializers.SerializerMethodField()
 
     class Meta:
         model = Organization
         fields = [
             "id", "name", "owner", "owner_email", "owner_full_name",
-            "member_count", "memberships", "created_at", "updated_at"
+            "member_count", "memberships", "current_user_role", "created_at", "updated_at"
         ]
         read_only_fields = ["id", "owner", "created_at", "updated_at"]
 
     def get_member_count(self, obj):
         return obj.memberships.count()
+    
+    def get_current_user_role(self, obj):
+        """Get the current user's role in this organization."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            if obj.owner == request.user:
+                return 'admin'
+            try:
+                membership = obj.memberships.get(user=request.user)
+                return membership.role
+            except OrganizationMembership.DoesNotExist:
+                return None
+        return None
 
 
 class UserSerializer(serializers.ModelSerializer):

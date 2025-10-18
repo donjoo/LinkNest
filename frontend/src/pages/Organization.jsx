@@ -18,6 +18,7 @@ const Organization = () => {
   const [editNamespaceDescription, setEditNamespaceDescription] = useState('');
   const [editingMember, setEditingMember] = useState(null);
   const [editMemberRole, setEditMemberRole] = useState('');
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -25,18 +26,36 @@ const Organization = () => {
     }
   }, [id]);
 
+  // Helper functions for role-based UI visibility
+  const isAdmin = userRole === 'admin';
+  const isEditor = userRole === 'editor';
+  const isViewer = userRole === 'viewer';
+  const canManageNamespaces = isAdmin;
+  const canManageMembers = isAdmin;
+  const canManageInvites = isAdmin;
+  const canCreateShortUrls = isAdmin || isEditor;
+
   const fetchOrganizationData = async () => {
     try {
       setLoading(true);
-      const [orgResponse, namespacesResponse, membersResponse] = await Promise.all([
+      const [orgResponse, namespacesResponse] = await Promise.all([
         organizationsAPI.get(id),
-        namespacesAPI.list(),
-        organizationsAPI.getMembers(id)
+        namespacesAPI.list()
       ]);
       
       setOrganization(orgResponse.data);
       setNamespaces(namespacesResponse.data.results || namespacesResponse.data);
-      setMembers(membersResponse.data);
+      setUserRole(orgResponse.data.current_user_role);
+      
+      // Try to fetch members, but don't fail if user doesn't have permission
+      try {
+        const membersResponse = await organizationsAPI.getMembers(id);
+        setMembers(membersResponse.data);
+      } catch (membersErr) {
+        // User doesn't have permission to view members, set empty array
+        console.log('User does not have permission to view members');
+        setMembers([]);
+      }
     } catch (err) {
       setError('Failed to fetch organization data');
       console.error('Error fetching organization data:', err);
@@ -59,8 +78,13 @@ const Organization = () => {
       setNewNamespaceName('');
       setNewNamespaceDescription('');
       setShowCreateNamespace(false);
+      setError(null); // Clear any previous errors
     } catch (err) {
-      setError('Failed to create namespace');
+      if (err.response?.status === 403) {
+        setError('You do not have permission to create namespaces. Only organization admins can create namespaces.');
+      } else {
+        setError('Failed to create namespace');
+      }
       console.error('Error creating namespace:', err);
     }
   };
@@ -87,8 +111,13 @@ const Organization = () => {
       setEditingNamespace(null);
       setEditNamespaceName('');
       setEditNamespaceDescription('');
+      setError(null); // Clear any previous errors
     } catch (err) {
-      setError('Failed to update namespace');
+      if (err.response?.status === 403) {
+        setError('You do not have permission to update namespaces. Only organization admins can manage namespaces.');
+      } else {
+        setError('Failed to update namespace');
+      }
       console.error('Error updating namespace:', err);
     }
   };
@@ -101,8 +130,13 @@ const Organization = () => {
     try {
       await namespacesAPI.delete(namespaceId);
       setNamespaces(namespaces.filter(ns => ns.id !== namespaceId));
+      setError(null); // Clear any previous errors
     } catch (err) {
-      setError('Failed to delete namespace');
+      if (err.response?.status === 403) {
+        setError('You do not have permission to delete namespaces. Only organization admins can manage namespaces.');
+      } else {
+        setError('Failed to delete namespace');
+      }
       console.error('Error deleting namespace:', err);
     }
   };
@@ -123,8 +157,13 @@ const Organization = () => {
       ));
       setEditingMember(null);
       setEditMemberRole('');
+      setError(null); // Clear any previous errors
     } catch (err) {
-      setError('Failed to update member role');
+      if (err.response?.status === 403) {
+        setError('You do not have permission to update member roles. Only organization admins can manage members.');
+      } else {
+        setError('Failed to update member role');
+      }
       console.error('Error updating member role:', err);
     }
   };
@@ -137,8 +176,13 @@ const Organization = () => {
     try {
       await organizationsAPI.removeMember(id, memberId);
       setMembers(members.filter(member => member.id !== memberId));
+      setError(null); // Clear any previous errors
     } catch (err) {
-      setError('Failed to remove member');
+      if (err.response?.status === 403) {
+        setError('You do not have permission to remove members. Only organization admins can manage members.');
+      } else {
+        setError('Failed to remove member');
+      }
       console.error('Error removing member:', err);
     }
   };
@@ -243,26 +287,30 @@ const Organization = () => {
             >
               Namespaces
             </button>
-            <button
-              onClick={() => setActiveTab('members')}
-              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                activeTab === 'members'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Members
-            </button>
-            <button
-              onClick={() => setActiveTab('invites')}
-              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                activeTab === 'invites'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Invites
-            </button>
+            {canManageMembers && (
+              <button
+                onClick={() => setActiveTab('members')}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  activeTab === 'members'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                Members
+              </button>
+            )}
+            {canManageInvites && (
+              <button
+                onClick={() => setActiveTab('invites')}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  activeTab === 'invites'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                Invites
+              </button>
+            )}
           </div>
 
           {error && (
@@ -276,15 +324,17 @@ const Organization = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-semibold text-white">Namespaces</h3>
-                <button
-                  onClick={() => setShowCreateNamespace(true)}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-indigo-500/25"
-                >
-                  <svg className="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Create Namespace
-                </button>
+                {canManageNamespaces && (
+                  <button
+                    onClick={() => setShowCreateNamespace(true)}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-indigo-500/25"
+                  >
+                    <svg className="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Create Namespace
+                  </button>
+                )}
               </div>
 
               {showCreateNamespace && (
@@ -408,26 +458,28 @@ const Organization = () => {
                             {namespace.short_url_count || 0} short URL{(namespace.short_url_count || 0) !== 1 ? 's' : ''}
                           </p>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditNamespace(namespace)}
-                            className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 p-2 rounded-lg transition-all duration-200"
-                            title="Edit namespace"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteNamespace(namespace.id)}
-                            className="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 p-2 rounded-lg transition-all duration-200"
-                            title="Delete namespace"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
+                        {canManageNamespaces && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditNamespace(namespace)}
+                              className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 p-2 rounded-lg transition-all duration-200"
+                              title="Edit namespace"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteNamespace(namespace.id)}
+                              className="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 p-2 rounded-lg transition-all duration-200"
+                              title="Delete namespace"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="mt-6">
                         <Link
