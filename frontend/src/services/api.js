@@ -82,6 +82,12 @@ export const organizationsAPI = {
   delete: (id) => api.delete(`/organizations/${id}/`),
   getMembers: (id) => api.get(`/organizations/${id}/members/`),
   inviteMember: (id, data) => api.post(`/organizations/${id}/invite_member/`, data),
+  
+  // Invite functions
+  getInvites: (id) => api.get(`/organizations/${id}/invites/`),
+  createInvite: (id, data) => api.post(`/organizations/${id}/create_invite/`, data),
+  revokeInvite: (id, data) => api.post(`/organizations/${id}/revoke_invite/`, data),
+  acceptInvite: (data) => api.post('/invites/accept/', data),
 };
 
 // Namespaces API functions

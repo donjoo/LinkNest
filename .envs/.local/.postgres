@@ -1,4 +1,6 @@
 # PostgreSQL
-POSTGRES_DB=postgres
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
+POSTGRES_DB=hirethon_template_local
+POSTGRES_USER=hirethon_template
+POSTGRES_PASSWORD=hirethon_template
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432

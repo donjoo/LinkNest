@@ -8,6 +8,8 @@ import OTPVerification from './pages/OTPVerification';
 import Dashboard from './pages/Dashboard';
 import Organization from './pages/Organization';
 import Namespace from './pages/Namespace';
+import InviteAcceptPage from './pages/invite/InviteAcceptPage';
+import InviteManagementPage from './pages/invite/InviteManagementPage';
 
 function App() {
   return (
@@ -39,6 +41,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Namespace />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/organizations/:id/invites" 
+              element={
+                <ProtectedRoute>
+                  <InviteManagementPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/invite/accept" 
+              element={
+                <ProtectedRoute>
+                  <InviteAcceptPage />
                 </ProtectedRoute>
               } 
             />

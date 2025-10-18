@@ -1,0 +1,15 @@
+To: zoronoha147@gmail.com
+From: jodon3262@gmail.com
+Subject: You've been invited to join Niya's Organization on LinkNest
+--------------------------------------------------
+Hi zoronoha147@gmail.com,
+
+You've been invited to join Niya's Organization as editor.
+
+Click the link below to accept:
+http://localhost:3000/invite/accept/?token=C7Q8byrzljjk3qg3nZcc6qhOWGY7McY6vePzMPYWPTw
+
+This invitation will expire in 7 days.
+
+Best regards,
+The LinkNest Team

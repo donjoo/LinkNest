@@ -1,0 +1,15 @@
+To: newuser@example.com
+From: jodon3262@gmail.com
+Subject: You have been invited to join Test Organization on LinkNest
+--------------------------------------------------
+Hi newuser@example.com,
+
+You have been invited to join Test Organization as viewer.
+
+Click the link below to accept:
+http://localhost:3000/invite/accept/?token=EqZQGEOGt44t2vriMCgA_HYEZo6RC0npnAS5AUKqPD8
+
+This invitation will expire in 7 days.
+
+Best regards,
+The LinkNest Team

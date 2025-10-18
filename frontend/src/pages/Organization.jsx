@@ -170,6 +170,16 @@ const Organization = () => {
             >
               Members
             </button>
+            <button
+              onClick={() => setActiveTab('invites')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                activeTab === 'invites'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              Invites
+            </button>
           </div>
 
           {error && (
@@ -333,6 +343,40 @@ const Organization = () => {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Invites Tab */}
+          {activeTab === 'invites' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-semibold text-white">Invitations</h3>
+                <Link
+                  to={`/organizations/${id}/invites`}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-indigo-500/25"
+                >
+                  <svg className="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                  </svg>
+                  Manage Invitations
+                </Link>
+              </div>
+              
+              <div className="text-center py-12">
+                <div className="mx-auto h-16 w-16 text-slate-400 mb-4">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">Invite Management</h3>
+                <p className="text-slate-400 mb-6">Send invitations to new members and manage pending invites.</p>
+                <Link
+                  to={`/organizations/${id}/invites`}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-indigo-500/25"
+                >
+                  Go to Invite Management
+                </Link>
+              </div>
             </div>
           )}
         </div>

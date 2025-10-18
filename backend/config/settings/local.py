@@ -28,8 +28,8 @@ from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),  # 24 hours for development
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),   # 7 days for development
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    'ROTATE_REFRESH_TOKENS': False,  # Disable for debugging
+    'BLACKLIST_AFTER_ROTATION': False,  # Disable for debugging
 }
 
 # CACHES
@@ -45,7 +45,7 @@ CACHES = {
 # EMAIL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-backend
-EMAIL_BACKEND = env("DJANGO_EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 # Email configuration for Gmail SMTP
 EMAIL_HOST = 'smtp.gmail.com'
