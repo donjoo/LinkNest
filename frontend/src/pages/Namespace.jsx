@@ -13,7 +13,8 @@ const Namespace = () => {
     original_url: '',
     short_code: '',
     title: '',
-    description: ''
+    description: '',
+    expiry_date: ''
   });
 
   useEffect(() => {
@@ -45,21 +46,48 @@ const Namespace = () => {
     if (!newShortUrl.original_url.trim()) return;
 
     try {
-      const response = await shortUrlsAPI.create({
-        ...newShortUrl,
-        namespace: id
-      });
+      // Prepare data, removing empty strings
+      const urlData = {
+        namespace: id,
+        original_url: newShortUrl.original_url.trim(),
+        title: newShortUrl.title.trim() || undefined,
+        description: newShortUrl.description.trim() || undefined,
+        expiry_date: newShortUrl.expiry_date || undefined
+      };
+
+      // Only include short_code if it's not empty
+      if (newShortUrl.short_code.trim()) {
+        urlData.short_code = newShortUrl.short_code.trim();
+      }
+
+      const response = await shortUrlsAPI.create(urlData);
       setShortUrls([...shortUrls, response.data]);
       setNewShortUrl({
         original_url: '',
         short_code: '',
         title: '',
-        description: ''
+        description: '',
+        expiry_date: ''
       });
       setShowCreateForm(false);
+      setError(null); // Clear any previous errors
     } catch (err) {
-      setError('Failed to create short URL');
       console.error('Error creating short URL:', err);
+      if (err.response?.data) {
+        // Show specific error messages from the backend
+        const errorMessages = [];
+        if (err.response.data.non_field_errors) {
+          errorMessages.push(...err.response.data.non_field_errors);
+        }
+        Object.keys(err.response.data).forEach(key => {
+          if (key !== 'non_field_errors' && Array.isArray(err.response.data[key])) {
+            errorMessages.push(`${key}: ${err.response.data[key].join(', ')}`);
+          }
+        });
+        setError(errorMessages.length > 0 ? errorMessages.join('; ') : 'Failed to create short URL');
+      } else {
+        setError('Failed to create short URL');
+      }
     }
   };
 
@@ -229,6 +257,17 @@ const Namespace = () => {
                     className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Expiry Date (optional)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={newShortUrl.expiry_date}
+                    onChange={(e) => setNewShortUrl({...newShortUrl, expiry_date: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
                 <div className="flex gap-4">
                   <button
                     type="submit"
@@ -244,7 +283,8 @@ const Namespace = () => {
                         original_url: '',
                         short_code: '',
                         title: '',
-                        description: ''
+                        description: '',
+                        expiry_date: ''
                       });
                     }}
                     className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
@@ -296,6 +336,12 @@ const Namespace = () => {
                         <span>{shortUrl.click_count} clicks</span>
                         <span>•</span>
                         <span>By: {shortUrl.created_by_email}</span>
+                        {shortUrl.expiry_date && (
+                          <>
+                            <span>•</span>
+                            <span>Expires: {new Date(shortUrl.expiry_date).toLocaleDateString()}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="ml-6 flex flex-col gap-2">

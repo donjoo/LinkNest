@@ -358,6 +358,8 @@ ADMIN_INDEX_TITLE = "Welcome to {} Admin Portal".format("hirethon_template".titl
 # Your stuff...
 # ------------------------------------------------------------------------------
 
+# Frontend URL for generating short URLs
+FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", default="http://localhost:8000")
 
 CLOUDFRONT_KEY_ID = env("CLOUDFRONT_KEY_ID", default="")
 CLOUDFRONT_DOMAIN = env("CLOUDFRONT_DOMAIN", default="")

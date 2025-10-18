@@ -10,6 +10,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 User = get_user_model()
 
@@ -55,6 +56,7 @@ class ShortURL(models.Model):
     original_url = models.URLField(help_text=_("Original URL to be shortened"))
     short_code = models.CharField(
         max_length=50,
+        blank=True,
         help_text=_("Short code for the URL (unique within namespace)")
     )
     created_by = models.ForeignKey(
@@ -72,6 +74,11 @@ class ShortURL(models.Model):
         help_text=_("Optional description for the short URL")
     )
     is_active = models.BooleanField(default=True, help_text=_("Whether the short URL is active"))
+    expiry_date = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        help_text=_("Optional expiry date for the short URL")
+    )
     click_count = models.PositiveIntegerField(default=0, help_text=_("Number of clicks"))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -87,13 +94,25 @@ class ShortURL(models.Model):
 
     def get_full_short_url(self):
         """Get the full short URL."""
-        # This would typically use your domain, for now using localhost
-        return f"http://localhost:8000/{self.namespace.name}/{self.short_code}"
+        from django.conf import settings
+        base_url = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:8000')
+        return f"{base_url}/{self.namespace.name}/{self.short_code}"
 
     def increment_click_count(self):
         """Increment the click count."""
         self.click_count += 1
         self.save(update_fields=["click_count"])
+
+    def is_expired(self):
+        """Check if the short URL has expired."""
+        if not self.expiry_date:
+            return False
+        from django.utils import timezone
+        return timezone.now() > self.expiry_date
+
+    def is_accessible(self):
+        """Check if the short URL is accessible (active and not expired)."""
+        return self.is_active and not self.is_expired()
 
     @staticmethod
     def generate_short_code(length=6):
@@ -115,6 +134,14 @@ class ShortURL(models.Model):
             raise ValidationError(
                 _("Short code must be unique within the namespace.")
             )
+        
+        # Validate expiry date is in the future
+        if self.expiry_date:
+            from django.utils import timezone
+            if self.expiry_date <= timezone.now():
+                raise ValidationError(
+                    _("Expiry date must be in the future.")
+                )
 
     def save(self, *args, **kwargs):
         self.clean()

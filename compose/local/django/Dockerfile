@@ -31,4 +31,4 @@ COPY --chown=django:django ./compose/local/django/celery/beat/start /start-celer
 RUN chmod +x /start-celeryworker /start-celerybeat
 RUN chmod +x /entrypoint /start
 
-ENTRYPOINT ["/entrypoint"]
+# ENTRYPOINT ["/entrypoint"]

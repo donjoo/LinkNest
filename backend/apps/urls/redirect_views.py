@@ -14,9 +14,15 @@ def redirect_short_url(request, namespace_name, short_code):
         short_url = get_object_or_404(
             ShortURL,
             namespace__name=namespace_name,
-            short_code=short_code,
-            is_active=True
+            short_code=short_code
         )
+        
+        # Check if URL is accessible (active and not expired)
+        if not short_url.is_accessible():
+            if short_url.is_expired():
+                raise Http404("Short URL has expired")
+            else:
+                raise Http404("Short URL is not active")
         
         # Increment click count
         short_url.increment_click_count()
@@ -25,4 +31,4 @@ def redirect_short_url(request, namespace_name, short_code):
         return redirect(short_url.original_url)
         
     except ShortURL.DoesNotExist:
-        raise Http404("Short URL not found or inactive")
+        raise Http404("Short URL not found")

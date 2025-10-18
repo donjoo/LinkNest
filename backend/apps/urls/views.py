@@ -110,11 +110,17 @@ class ShortURLViewSet(viewsets.ModelViewSet):
         """Handle URL redirection and increment click count."""
         short_url = self.get_object()
         
-        if not short_url.is_active:
-            return Response(
-                {"detail": "Short URL is not active."},
-                status=status.HTTP_410_GONE
-            )
+        if not short_url.is_accessible():
+            if short_url.is_expired():
+                return Response(
+                    {"detail": "Short URL has expired."},
+                    status=status.HTTP_410_GONE
+                )
+            else:
+                return Response(
+                    {"detail": "Short URL is not active."},
+                    status=status.HTTP_410_GONE
+                )
         
         # Increment click count
         short_url.increment_click_count()

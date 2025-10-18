@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+# Simple entrypoint that doesn't wait for PostgreSQL
+exec "$@"
+

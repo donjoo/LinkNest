@@ -5,6 +5,7 @@ Moved from apps.links.serializers - handles namespace and short URL serializatio
 """
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from .models import Namespace, ShortURL
 
 User = get_user_model()
@@ -28,8 +29,15 @@ class NamespaceSerializer(serializers.ModelSerializer):
 
     def validate_name(self, value):
         """Validate that namespace name is unique globally."""
-        if Namespace.objects.filter(name=value).exists():
-            raise serializers.ValidationError("Namespace name must be globally unique.")
+        # Check if this is an update operation
+        if self.instance:
+            # If updating, exclude current instance from uniqueness check
+            if Namespace.objects.filter(name=value).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError("Namespace name must be globally unique.")
+        else:
+            # If creating, check if name already exists
+            if Namespace.objects.filter(name=value).exists():
+                raise serializers.ValidationError("Namespace name must be globally unique.")
         return value
 
 
@@ -45,8 +53,8 @@ class ShortURLSerializer(serializers.ModelSerializer):
         fields = [
             "id", "namespace", "namespace_name", "organization_name",
             "original_url", "short_code", "title", "description",
-            "created_by", "created_by_email", "is_active", "click_count",
-            "full_short_url", "created_at", "updated_at"
+            "created_by", "created_by_email", "is_active", "expiry_date",
+            "click_count", "full_short_url", "created_at", "updated_at"
         ]
         read_only_fields = [
             "id", "created_by", "click_count", "created_at", "updated_at"
@@ -63,25 +71,52 @@ class ShortURLSerializer(serializers.ModelSerializer):
     def validate_short_code(self, value):
         """Validate that short code is unique within the namespace."""
         namespace = self.initial_data.get("namespace")
-        if namespace and value:
-            if ShortURL.objects.filter(
-                namespace=namespace,
-                short_code=value
-            ).exists():
-                raise serializers.ValidationError(
-                    "Short code must be unique within the namespace."
-                )
+        if namespace and value and value.strip():  # Only validate if value is not empty
+            # Check if this is an update operation
+            if self.instance:
+                # If updating, exclude current instance from uniqueness check
+                if ShortURL.objects.filter(
+                    namespace=namespace,
+                    short_code=value
+                ).exclude(pk=self.instance.pk).exists():
+                    raise serializers.ValidationError(
+                        "Short code must be unique within the namespace."
+                    )
+            else:
+                # If creating, check if short code already exists
+                if ShortURL.objects.filter(
+                    namespace=namespace,
+                    short_code=value
+                ).exists():
+                    raise serializers.ValidationError(
+                        "Short code must be unique within the namespace."
+                    )
+        return value
+
+    def validate_expiry_date(self, value):
+        """Validate that expiry date is in the future."""
+        if value and value <= timezone.now():
+            raise serializers.ValidationError(
+                "Expiry date must be in the future."
+            )
         return value
 
 
 class ShortURLCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating short URLs with auto-generated short codes."""
     
+    short_code = serializers.CharField(required=False, allow_blank=True, max_length=50, default='')
+    
     class Meta:
         model = ShortURL
         fields = [
-            "namespace", "original_url", "short_code", "title", "description"
+            "namespace", "original_url", "short_code", "title", "description", "expiry_date"
         ]
+        extra_kwargs = {
+            'title': {'required': False, 'allow_blank': True},
+            'description': {'required': False, 'allow_blank': True},
+            'expiry_date': {'required': False}
+        }
 
     def create(self, validated_data):
         # Set the current user as the creator
@@ -92,3 +127,11 @@ class ShortURLCreateSerializer(serializers.ModelSerializer):
             validated_data["short_code"] = ShortURL.generate_short_code()
         
         return super().create(validated_data)
+
+    def validate_expiry_date(self, value):
+        """Validate that expiry date is in the future."""
+        if value and value <= timezone.now():
+            raise serializers.ValidationError(
+                "Expiry date must be in the future."
+            )
+        return value
