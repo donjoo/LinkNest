@@ -16,6 +16,14 @@ const Namespace = () => {
     description: '',
     expiry_date: ''
   });
+  const [editingShortUrl, setEditingShortUrl] = useState(null);
+  const [editShortUrl, setEditShortUrl] = useState({
+    original_url: '',
+    short_code: '',
+    title: '',
+    description: '',
+    expiry_date: ''
+  });
 
   useEffect(() => {
     if (id) {
@@ -94,6 +102,82 @@ const Namespace = () => {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     // You could add a toast notification here
+  };
+
+  const handleEditShortUrl = (shortUrl) => {
+    setEditingShortUrl(shortUrl);
+    setEditShortUrl({
+      original_url: shortUrl.original_url,
+      short_code: shortUrl.short_code || '',
+      title: shortUrl.title || '',
+      description: shortUrl.description || '',
+      expiry_date: shortUrl.expiry_date ? shortUrl.expiry_date.split('T')[0] + 'T' + shortUrl.expiry_date.split('T')[1].split('.')[0] : ''
+    });
+  };
+
+  const handleUpdateShortUrl = async (e) => {
+    e.preventDefault();
+    if (!editShortUrl.original_url.trim()) return;
+
+    try {
+      // Prepare data, removing empty strings
+      const urlData = {
+        namespace: id,
+        original_url: editShortUrl.original_url.trim(),
+        title: editShortUrl.title.trim() || undefined,
+        description: editShortUrl.description.trim() || undefined,
+        expiry_date: editShortUrl.expiry_date || undefined
+      };
+
+      // Only include short_code if it's not empty
+      if (editShortUrl.short_code.trim()) {
+        urlData.short_code = editShortUrl.short_code.trim();
+      }
+
+      const response = await shortUrlsAPI.update(editingShortUrl.id, urlData);
+      setShortUrls(shortUrls.map(url => 
+        url.id === editingShortUrl.id ? response.data : url
+      ));
+      setEditingShortUrl(null);
+      setEditShortUrl({
+        original_url: '',
+        short_code: '',
+        title: '',
+        description: '',
+        expiry_date: ''
+      });
+      setError(null);
+    } catch (err) {
+      console.error('Error updating short URL:', err);
+      if (err.response?.data) {
+        const errorMessages = [];
+        if (err.response.data.non_field_errors) {
+          errorMessages.push(...err.response.data.non_field_errors);
+        }
+        Object.keys(err.response.data).forEach(key => {
+          if (key !== 'non_field_errors' && Array.isArray(err.response.data[key])) {
+            errorMessages.push(`${key}: ${err.response.data[key].join(', ')}`);
+          }
+        });
+        setError(errorMessages.length > 0 ? errorMessages.join('; ') : 'Failed to update short URL');
+      } else {
+        setError('Failed to update short URL');
+      }
+    }
+  };
+
+  const handleDeleteShortUrl = async (shortUrlId) => {
+    if (!window.confirm('Are you sure you want to delete this short URL? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await shortUrlsAPI.delete(shortUrlId);
+      setShortUrls(shortUrls.filter(url => url.id !== shortUrlId));
+    } catch (err) {
+      setError('Failed to delete short URL');
+      console.error('Error deleting short URL:', err);
+    }
   };
 
   if (loading) {
@@ -296,6 +380,98 @@ const Namespace = () => {
             </div>
           )}
 
+          {editingShortUrl && (
+            <div className="mb-8 bg-slate-700/50 border border-slate-600/50 p-6 rounded-xl">
+              <h4 className="text-lg font-semibold text-white mb-4">Edit Short URL</h4>
+              <form onSubmit={handleUpdateShortUrl} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Original URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={editShortUrl.original_url}
+                    onChange={(e) => setEditShortUrl({...editShortUrl, original_url: e.target.value})}
+                    placeholder="https://example.com"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Custom Short Code (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={editShortUrl.short_code}
+                    onChange={(e) => setEditShortUrl({...editShortUrl, short_code: e.target.value})}
+                    placeholder="Leave empty for auto-generation"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Title (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={editShortUrl.title}
+                    onChange={(e) => setEditShortUrl({...editShortUrl, title: e.target.value})}
+                    placeholder="Short description"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Description (optional)
+                  </label>
+                  <textarea
+                    value={editShortUrl.description}
+                    onChange={(e) => setEditShortUrl({...editShortUrl, description: e.target.value})}
+                    placeholder="More details about this URL"
+                    rows={3}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Expiry Date (optional)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editShortUrl.expiry_date}
+                    onChange={(e) => setEditShortUrl({...editShortUrl, expiry_date: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    Update
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingShortUrl(null);
+                      setEditShortUrl({
+                        original_url: '',
+                        short_code: '',
+                        title: '',
+                        description: '',
+                        expiry_date: ''
+                      });
+                    }}
+                    className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
           {shortUrls.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto h-16 w-16 text-slate-400 mb-4">
@@ -351,15 +527,35 @@ const Namespace = () => {
                           {shortUrl.full_short_url}
                         </p>
                       </div>
-                      <button
-                        onClick={() => copyToClipboard(shortUrl.full_short_url)}
-                        className="bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 hover:border-purple-500/50 text-purple-400 hover:text-purple-300 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-                      >
-                        <svg className="h-4 w-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Copy
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => copyToClipboard(shortUrl.full_short_url)}
+                          className="bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 hover:border-purple-500/50 text-purple-400 hover:text-purple-300 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1"
+                        >
+                          <svg className="h-4 w-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => handleEditShortUrl(shortUrl)}
+                          className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 p-2 rounded-lg transition-all duration-200"
+                          title="Edit short URL"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteShortUrl(shortUrl.id)}
+                          className="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 p-2 rounded-lg transition-all duration-200"
+                          title="Delete short URL"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -13,6 +13,11 @@ const Organization = () => {
   const [showCreateNamespace, setShowCreateNamespace] = useState(false);
   const [newNamespaceName, setNewNamespaceName] = useState('');
   const [newNamespaceDescription, setNewNamespaceDescription] = useState('');
+  const [editingNamespace, setEditingNamespace] = useState(null);
+  const [editNamespaceName, setEditNamespaceName] = useState('');
+  const [editNamespaceDescription, setEditNamespaceDescription] = useState('');
+  const [editingMember, setEditingMember] = useState(null);
+  const [editMemberRole, setEditMemberRole] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -57,6 +62,84 @@ const Organization = () => {
     } catch (err) {
       setError('Failed to create namespace');
       console.error('Error creating namespace:', err);
+    }
+  };
+
+  const handleEditNamespace = (namespace) => {
+    setEditingNamespace(namespace);
+    setEditNamespaceName(namespace.name);
+    setEditNamespaceDescription(namespace.description || '');
+  };
+
+  const handleUpdateNamespace = async (e) => {
+    e.preventDefault();
+    if (!editNamespaceName.trim()) return;
+
+    try {
+      const response = await namespacesAPI.update(editingNamespace.id, {
+        name: editNamespaceName,
+        description: editNamespaceDescription,
+        organization: id
+      });
+      setNamespaces(namespaces.map(ns => 
+        ns.id === editingNamespace.id ? response.data : ns
+      ));
+      setEditingNamespace(null);
+      setEditNamespaceName('');
+      setEditNamespaceDescription('');
+    } catch (err) {
+      setError('Failed to update namespace');
+      console.error('Error updating namespace:', err);
+    }
+  };
+
+  const handleDeleteNamespace = async (namespaceId) => {
+    if (!window.confirm('Are you sure you want to delete this namespace? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await namespacesAPI.delete(namespaceId);
+      setNamespaces(namespaces.filter(ns => ns.id !== namespaceId));
+    } catch (err) {
+      setError('Failed to delete namespace');
+      console.error('Error deleting namespace:', err);
+    }
+  };
+
+  const handleEditMember = (member) => {
+    setEditingMember(member);
+    setEditMemberRole(member.role);
+  };
+
+  const handleUpdateMemberRole = async (e) => {
+    e.preventDefault();
+    if (!editMemberRole) return;
+
+    try {
+      await organizationsAPI.updateMemberRole(id, editingMember.id, { role: editMemberRole });
+      setMembers(members.map(member => 
+        member.id === editingMember.id ? { ...member, role: editMemberRole } : member
+      ));
+      setEditingMember(null);
+      setEditMemberRole('');
+    } catch (err) {
+      setError('Failed to update member role');
+      console.error('Error updating member role:', err);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm('Are you sure you want to remove this member from the organization?')) {
+      return;
+    }
+
+    try {
+      await organizationsAPI.removeMember(id, memberId);
+      setMembers(members.filter(member => member.id !== memberId));
+    } catch (err) {
+      setError('Failed to remove member');
+      console.error('Error removing member:', err);
     }
   };
 
@@ -250,6 +333,52 @@ const Organization = () => {
                 </div>
               )}
 
+              {editingNamespace && (
+                <div className="mb-8 bg-slate-700/50 border border-slate-600/50 p-6 rounded-xl">
+                  <h4 className="text-lg font-semibold text-white mb-4">Edit Namespace</h4>
+                  <form onSubmit={handleUpdateNamespace} className="space-y-4">
+                    <div>
+                      <input
+                        type="text"
+                        value={editNamespaceName}
+                        onChange={(e) => setEditNamespaceName(e.target.value)}
+                        placeholder="Namespace name (globally unique)"
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <textarea
+                        value={editNamespaceDescription}
+                        onChange={(e) => setEditNamespaceDescription(e.target.value)}
+                        placeholder="Description (optional)"
+                        rows={3}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-4">
+                      <button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                      >
+                        Update
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingNamespace(null);
+                          setEditNamespaceName('');
+                          setEditNamespaceDescription('');
+                        }}
+                        className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
               {namespaces.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="mx-auto h-16 w-16 text-slate-400 mb-4">
@@ -279,6 +408,26 @@ const Organization = () => {
                             {namespace.short_url_count || 0} short URL{(namespace.short_url_count || 0) !== 1 ? 's' : ''}
                           </p>
                         </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditNamespace(namespace)}
+                            className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 p-2 rounded-lg transition-all duration-200"
+                            title="Edit namespace"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteNamespace(namespace.id)}
+                            className="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 p-2 rounded-lg transition-all duration-200"
+                            title="Delete namespace"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                       <div className="mt-6">
                         <Link
@@ -299,6 +448,48 @@ const Organization = () => {
           {activeTab === 'members' && (
             <div>
               <h3 className="text-xl font-semibold text-white mb-6">Members</h3>
+              
+              {editingMember && (
+                <div className="mb-8 bg-slate-700/50 border border-slate-600/50 p-6 rounded-xl">
+                  <h4 className="text-lg font-semibold text-white mb-4">Edit Member Role</h4>
+                  <form onSubmit={handleUpdateMemberRole} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Member: {editingMember.user_full_name || editingMember.user_email}
+                      </label>
+                      <select
+                        value={editMemberRole}
+                        onChange={(e) => setEditMemberRole(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="viewer">Viewer - Can view content</option>
+                        <option value="editor">Editor - Can create and edit content</option>
+                        <option value="admin">Admin - Full access</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-4">
+                      <button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                      >
+                        Update Role
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingMember(null);
+                          setEditMemberRole('');
+                        }}
+                        className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
               {members.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="mx-auto h-16 w-16 text-slate-400 mb-4">
@@ -327,7 +518,7 @@ const Organization = () => {
                             <p className="text-sm text-slate-400">{member.user_email}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
                             member.role === 'admin'
                               ? 'bg-red-500/10 border border-red-500/30 text-red-400'
@@ -337,6 +528,26 @@ const Organization = () => {
                           }`}>
                             {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                           </span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditMember(member)}
+                              className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 text-blue-400 hover:text-blue-300 p-2 rounded-lg transition-all duration-200"
+                              title="Edit member role"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleRemoveMember(member.id)}
+                              className="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 p-2 rounded-lg transition-all duration-200"
+                              title="Remove member"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

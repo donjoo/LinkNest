@@ -88,6 +88,10 @@ export const organizationsAPI = {
   createInvite: (id, data) => api.post(`/organizations/${id}/create_invite/`, data),
   revokeInvite: (id, data) => api.post(`/organizations/${id}/revoke_invite/`, data),
   acceptInvite: (data) => api.post('/invites/accept/', data),
+  
+  // Member management functions
+  updateMemberRole: (orgId, memberId, data) => api.patch(`/organizations/${orgId}/members/${memberId}/`, data),
+  removeMember: (orgId, memberId) => api.delete(`/organizations/${orgId}/members/${memberId}/`),
 };
 
 // Namespaces API functions

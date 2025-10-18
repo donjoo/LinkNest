@@ -7,6 +7,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.core.mail import send_mail
@@ -24,6 +25,12 @@ from .serializers import (
     InviteDeclineSerializer,
     InviteAcceptResponseSerializer,
     InviteDeclineResponseSerializer
+)
+from .permissions import (
+    IsOrganizationMember,
+    IsOrganizationAdmin,
+    CanInviteMembers,
+    CanManageMembers
 )
 
 User = get_user_model()
@@ -47,7 +54,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         if self.action in ['create']:
             permission_classes = [permissions.IsAuthenticated]
         elif self.action in ['list', 'retrieve']:
-            permission_classes = [permissions.IsAuthenticated]
+            permission_classes = [permissions.IsAuthenticated, IsOrganizationMember]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [permissions.IsAuthenticated, IsOrganizationAdmin]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -62,29 +71,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             role=OrganizationMembership.Role.ADMIN
         )
 
-    @action(detail=True, methods=['get'])
-    def members(self, request, pk=None):
-        """Get all members of an organization."""
-        organization = self.get_object()
-        
-        # Check if user has access to this organization
-        if not self._has_organization_access(organization):
-            return Response(
-                {"detail": "You don't have access to this organization."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        memberships = organization.memberships.all()
-        serializer = OrganizationMembershipSerializer(memberships, many=True)
-        return Response(serializer.data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, CanInviteMembers])
     def invite_member(self, request, pk=None):
         """Invite a user to the organization."""
         organization = self.get_object()
         
         # Check if user is admin of the organization
-        if not self._is_organization_admin(organization):
+        permission = CanInviteMembers()
+        if not permission.has_object_permission(request, None, organization):
             return Response(
                 {"detail": "Only organization admins can invite members."},
                 status=status.HTTP_403_FORBIDDEN
@@ -144,13 +139,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             ).exists()
         )
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated, CanInviteMembers])
     def invites(self, request, pk=None):
         """Get all invites for an organization (Admin only)."""
         organization = self.get_object()
         
         # Check if user is admin of the organization
-        if not self._is_organization_admin(organization):
+        permission = CanInviteMembers()
+        if not permission.has_object_permission(request, None, organization):
             return Response(
                 {"detail": "Only organization admins can view invites."},
                 status=status.HTTP_403_FORBIDDEN
@@ -160,13 +156,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         serializer = InviteSerializer(invites, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, CanInviteMembers])
     def create_invite(self, request, pk=None):
         """Create an invite for the organization (Admin only)."""
         organization = self.get_object()
         
         # Check if user is admin of the organization
-        if not self._is_organization_admin(organization):
+        permission = CanInviteMembers()
+        if not permission.has_object_permission(request, None, organization):
             return Response(
                 {"detail": "Only organization admins can create invites."},
                 status=status.HTTP_403_FORBIDDEN
@@ -203,13 +200,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, CanInviteMembers])
     def revoke_invite(self, request, pk=None):
         """Revoke an invite (Admin only)."""
         organization = self.get_object()
         
         # Check if user is admin of the organization
-        if not self._is_organization_admin(organization):
+        permission = CanInviteMembers()
+        if not permission.has_object_permission(request, None, organization):
             return Response(
                 {"detail": "Only organization admins can revoke invites."},
                 status=status.HTTP_403_FORBIDDEN
@@ -238,6 +236,66 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         
         invite.delete()
         return Response({"detail": "Invite revoked successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated, IsOrganizationMember])
+    def short_urls(self, request, pk=None):
+        """Get all short URLs for an organization (Admin can see all, others see their own)."""
+        organization = self.get_object()
+        
+        # Check if user has access to this organization
+        permission = IsOrganizationMember()
+        if not permission.has_object_permission(request, None, organization):
+            return Response(
+                {"detail": "You don't have access to this organization."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        from apps.urls.models import ShortURL
+        from apps.urls.serializers import ShortURLSerializer
+        
+        # Get all short URLs in this organization
+        short_urls = ShortURL.objects.filter(
+            namespace__organization=organization
+        ).select_related('namespace', 'created_by').order_by('-created_at')
+        
+        # If user is not admin, filter to only show their own URLs
+        is_admin = (
+            organization.owner == request.user or
+            organization.memberships.filter(
+                user=request.user,
+                role=OrganizationMembership.Role.ADMIN
+            ).exists()
+        )
+        
+        if not is_admin:
+            short_urls = short_urls.filter(created_by=request.user)
+        
+        serializer = ShortURLSerializer(short_urls, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated, IsOrganizationMember])
+    def namespaces(self, request, pk=None):
+        """Get all namespaces for an organization."""
+        organization = self.get_object()
+        
+        # Check if user has access to this organization
+        permission = IsOrganizationMember()
+        if not permission.has_object_permission(request, None, organization):
+            return Response(
+                {"detail": "You don't have access to this organization."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        from apps.urls.models import Namespace
+        from apps.urls.serializers import NamespaceSerializer
+        
+        # Get all namespaces in this organization
+        namespaces = Namespace.objects.filter(
+            organization=organization
+        ).order_by('-created_at')
+        
+        serializer = NamespaceSerializer(namespaces, many=True)
+        return Response(serializer.data)
 
     def _send_invitation_email(self, invite):
         """Send invitation email to the invitee."""
@@ -665,3 +723,69 @@ class InviteAcceptAfterVerificationView(APIView):
                 'refresh': str(refresh),
             }
         }, status=status.HTTP_200_OK)
+
+
+class OrganizationMemberViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing organization members (Admin only)."""
+    serializer_class = OrganizationMembershipSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageMembers]
+
+    def get_queryset(self):
+        """Return memberships for organizations where user is admin."""
+        organization_id = self.kwargs.get('organization_pk')
+        if organization_id:
+            try:
+                organization = Organization.objects.get(id=organization_id)
+                return organization.memberships.all()
+            except Organization.DoesNotExist:
+                pass
+        return OrganizationMembership.objects.none()
+
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [permissions.IsAuthenticated, CanManageMembers]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [permissions.IsAuthenticated, CanManageMembers]
+        else:
+            permission_classes = [permissions.IsAuthenticated, CanManageMembers]
+        return [permission() for permission in permission_classes]
+
+    def perform_update(self, serializer):
+        """Update member role and validate permissions."""
+        membership = self.get_object()
+        organization = membership.organization
+        
+        # Check if user is admin of the organization
+        permission = CanManageMembers()
+        if not permission.has_object_permission(self.request, None, organization):
+            raise PermissionDenied(
+                "Only organization admins can manage members."
+            )
+        
+        # Prevent changing the organization owner's role
+        if membership.user == organization.owner:
+            raise PermissionDenied(
+                "Cannot change the organization owner's role."
+            )
+        
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """Remove member from organization."""
+        organization = instance.organization
+        
+        # Check if user is admin of the organization
+        permission = CanManageMembers()
+        if not permission.has_object_permission(self.request, None, organization):
+            raise PermissionDenied(
+                "Only organization admins can remove members."
+            )
+        
+        # Prevent removing the organization owner
+        if instance.user == organization.owner:
+            raise PermissionDenied(
+                "Cannot remove the organization owner."
+            )
+        
+        instance.delete()

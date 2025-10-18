@@ -7,6 +7,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     OrganizationViewSet, 
+    OrganizationMemberViewSet,
     InviteAcceptView, 
     InviteDeclineView,
     InviteRegisterView,
@@ -19,6 +20,11 @@ app_name = "organizations"
 
 router = DefaultRouter()
 router.register(r'organizations', OrganizationViewSet)
+router.register(
+    r'organizations/(?P<organization_pk>[^/.]+)/members', 
+    OrganizationMemberViewSet, 
+    basename='organization-members'
+)
 
 urlpatterns = [
     path('', include(router.urls)),

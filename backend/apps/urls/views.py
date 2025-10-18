@@ -6,12 +6,19 @@ Moved from apps.links.views - handles namespace and short URL management.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from .models import Namespace, ShortURL
 from .serializers import (
     NamespaceSerializer,
     ShortURLSerializer,
     ShortURLCreateSerializer
+)
+from apps.organizations.permissions import (
+    CanCreateNamespace,
+    CanManageShortURL,
+    CanViewShortURL,
+    IsOrganizationMember
 )
 
 
@@ -30,10 +37,14 @@ class NamespaceViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Set permissions based on action."""
         if self.action in ['create']:
-            # Only admins and editors can create namespaces
-            permission_classes = [permissions.IsAuthenticated]
+            # Only admins can create namespaces
+            permission_classes = [permissions.IsAuthenticated, CanCreateNamespace]
         elif self.action in ['list', 'retrieve']:
-            permission_classes = [permissions.IsAuthenticated]
+            # All organization members can view namespaces
+            permission_classes = [permissions.IsAuthenticated, IsOrganizationMember]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            # Only admins can modify namespaces
+            permission_classes = [permissions.IsAuthenticated, CanCreateNamespace]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -43,24 +54,13 @@ class NamespaceViewSet(viewsets.ModelViewSet):
         organization = serializer.validated_data['organization']
         
         # Check if user has permission to create namespaces in this organization
-        if not self._can_create_namespace(organization):
-            raise permissions.PermissionDenied(
-                "You don't have permission to create namespaces in this organization."
+        permission = CanCreateNamespace()
+        if not permission.has_permission_for_organization(self.request, organization):
+            raise PermissionDenied(
+                "Only organization admins can create namespaces."
             )
         
         serializer.save()
-
-    def _can_create_namespace(self, organization):
-        """Check if user can create namespaces in the organization."""
-        from apps.organizations.models import OrganizationMembership
-        membership = organization.memberships.filter(user=self.request.user).first()
-        return (
-            organization.owner == self.request.user or
-            (membership and membership.role in [
-                OrganizationMembership.Role.ADMIN,
-                OrganizationMembership.Role.EDITOR
-            ])
-        )
 
 
 class ShortURLViewSet(viewsets.ModelViewSet):
@@ -80,30 +80,30 @@ class ShortURLViewSet(viewsets.ModelViewSet):
             namespace__organization__memberships__user=self.request.user
         ).distinct()
 
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            # Admins and editors can manage short URLs
+            permission_classes = [permissions.IsAuthenticated, CanManageShortURL]
+        elif self.action in ['list', 'retrieve']:
+            # All organization members can view short URLs
+            permission_classes = [permissions.IsAuthenticated, CanViewShortURL]
+        else:
+            permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
     def perform_create(self, serializer):
         """Create short URL and validate user permissions."""
         namespace = serializer.validated_data['namespace']
         
         # Check if user has permission to create short URLs in this namespace
-        if not self._can_create_short_url(namespace):
-            raise permissions.PermissionDenied(
-                "You don't have permission to create short URLs in this namespace."
+        permission = CanManageShortURL()
+        if not permission.has_object_permission(self.request, None, namespace):
+            raise PermissionDenied(
+                "Only organization admins and editors can create short URLs."
             )
         
         serializer.save(created_by=self.request.user)
-
-    def _can_create_short_url(self, namespace):
-        """Check if user can create short URLs in the namespace."""
-        from apps.organizations.models import OrganizationMembership
-        organization = namespace.organization
-        membership = organization.memberships.filter(user=self.request.user).first()
-        return (
-            organization.owner == self.request.user or
-            (membership and membership.role in [
-                OrganizationMembership.Role.ADMIN,
-                OrganizationMembership.Role.EDITOR
-            ])
-        )
 
     @action(detail=True, methods=['post'])
     def redirect(self, request, pk=None):
