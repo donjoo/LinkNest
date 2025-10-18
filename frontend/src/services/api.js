@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: 'http://localhost:8001/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,7 +34,7 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          const response = await axios.post('http://localhost:8000/api/auth/token/refresh/', {
+          const response = await axios.post('http://localhost:8001/api/auth/token/refresh/', {
             refresh: refreshToken,
           });
 
@@ -65,6 +65,12 @@ export const authAPI = {
   logout: (refreshToken) => api.post('/auth/logout/', { refresh: refreshToken }),
   getProfile: () => api.get('/auth/profile/'),
   refreshToken: (refreshToken) => api.post('/auth/token/refresh/', { refresh: refreshToken }),
+  
+  // OTP functions
+  sendOTP: (email) => api.post('/auth/send-otp/', { email }),
+  verifyOTP: (email, code) => api.post('/auth/verify-otp/', { email, code }),
+  resendOTP: (email) => api.post('/auth/resend-otp/', { email }),
+  getOTPStatus: (email) => api.get(`/auth/otp-status/?email=${email}`),
 };
 
 // Organizations API functions

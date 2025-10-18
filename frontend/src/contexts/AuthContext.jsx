@@ -55,13 +55,17 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-      const { user: newUser, tokens } = response.data;
+      const { user: newUser, message } = response.data;
       
-      localStorage.setItem('access_token', tokens.access);
-      localStorage.setItem('refresh_token', tokens.refresh);
-      setUser(newUser);
+      // Store email for OTP verification
+      localStorage.setItem('pending_verification_email', newUser.email);
       
-      return { success: true, user: newUser };
+      return { 
+        success: true, 
+        user: newUser,
+        message: message,
+        requiresVerification: true
+      };
     } catch (error) {
       return { 
         success: false, 

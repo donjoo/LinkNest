@@ -48,7 +48,16 @@ const Register = () => {
     })
 
     if (result.success) {
-      navigate("/dashboard")
+      if (result.requiresVerification) {
+        navigate("/verify-otp", { 
+          state: { 
+            email: result.user.email,
+            message: result.message 
+          } 
+        });
+      } else {
+        navigate("/dashboard");
+      }
     } else {
       setError(result.error)
     }

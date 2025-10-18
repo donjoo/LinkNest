@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import OTPVerification from './pages/OTPVerification';
 import Dashboard from './pages/Dashboard';
 import Organization from './pages/Organization';
 import Namespace from './pages/Namespace';
@@ -16,6 +17,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify-otp" element={<OTPVerification />} />
             <Route 
               path="/dashboard" 
               element={
