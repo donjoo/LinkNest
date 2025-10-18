@@ -68,3 +68,17 @@ services:
     ports:
       - '5555:5555'
     command: /start-flower
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ./compose/local/frontend/Dockerfile
+    image: hirethon_template_local_frontend
+    container_name: hirethon_template_local_frontend
+    volumes:
+      - ./frontend:/app:z
+      - /app/node_modules
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development

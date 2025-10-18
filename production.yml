@@ -38,6 +38,7 @@ services:
     image: hirethon_template_production_traefik
     depends_on:
       - django
+      - frontend
     volumes:
       - production_traefik:/etc/traefik/acme
     ports:
@@ -62,6 +63,14 @@ services:
     <<: *django
     image: hirethon_template_production_flower
     command: /start-flower
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ./compose/production/frontend/Dockerfile
+    image: hirethon_template_production_frontend
+    depends_on:
+      - django
 
   awscli:
     build:
