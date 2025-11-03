@@ -1,91 +1,106 @@
-# hirethon-template
+# 🚀 URL Shortener — Hackathon Project
 
-Behold My Awesome Project!
+A **namespaced URL shortening platform** built with **Django (Backend)** and **React (Frontend)** within **24 hours** for a hackathon challenge.
 
-[![Built with Cookiecutter Django](https://img.shields.io/badge/built%20with-Cookiecutter%20Django-ff69b4.svg?logo=cookiecutter)](https://github.com/cookiecutter/cookiecutter-django/)
-[![Black code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+---
 
-## Settings
+## 🧩 Problem Statement
 
-Moved to [settings](http://cookiecutter-django.readthedocs.io/en/latest/settings.html).
+Build a **URL Shortener** with organizational privileges, secure access control, and namespace-based URL management.
 
-## Basic Commands
+Each user has their own organization(s), where they can manage namespaces and assign roles such as **Admin**, **Editor**, and **Viewer**.
 
-### Setting Up Your Users
+---
 
-- To create a **normal user account**, just go to Sign Up and fill out the form. Once you submit it, you'll see a "Verify Your E-mail Address" page. Go to your console to see a simulated email verification message. Copy the link into your browser. Now the user's email should be verified and ready to go.
+## ⚙️ Tech Stack
 
-- To create a **superuser account**, use this command:
+- **Frontend:** React.js  
+- **Backend:** Django + Django REST Framework  
+- **Database:** PostgreSQL  
+- **Storage:** Amazon S3 (for file uploads)  
+- **Authentication:** JWT-based (role-based access control)  
 
-      $ python manage.py createsuperuser
+---
 
-For convenience, you can keep your normal user logged in on Chrome and your superuser logged in on Firefox (or similar), so that you can see how the site behaves for both kinds of users.
+## 🔑 Core Features
 
-### Type checks
+### 👤 User & Organization Management
+- When a user signs up, a new **organization** is automatically created.  
+- The user becomes the **Admin** of that organization.  
+- An Admin can **invite** other users with different roles:
+  - **Admin:** Create namespaces, invite users, manage URLs.
+  - **Editor:** Create/edit/delete shortened URLs.
+  - **Viewer:** View shortened URLs.
 
-Running type checks with mypy:
+### 🏢 Namespace Management
+- Each **organization** can have multiple **namespaces**.
+- **Global uniqueness** — no two organizations share the same namespace.
+- **Custom namespace creation** available to Admins.
 
-    $ mypy hirethon_template
+### 🔗 URL Shortening
+- Users can **create short URLs** under a specific namespace.
+- **Custom shortcodes** supported (or generated randomly).
+- Shortcode uniqueness is **enforced per namespace**.
+- Example:
+domain.com/myspace/cv → https://drive.google.com/abc123/mycv
 
-### Test coverage
 
-To run the tests, check your test coverage, and generate an HTML coverage report:
+### 📁 Bulk Shortening
+- Upload an Excel file with a list of URLs.
+- The system returns an Excel file with corresponding shortened URLs.
+- Uses **Amazon S3** for secure file storage.
 
-    $ coverage run -m pytest
-    $ coverage html
-    $ open htmlcov/index.html
+### ⚙️ URL Management
+- Create, update, and delete short URLs within an organization’s namespace.
 
-#### Running tests with pytest
 
-    $ pytest
+- 🕒 **Expiring URLs:** Shortened links automatically expire after a defined duration.  
+- 📬 **Email Invites:** Admins can send organization invitations via email.
+- 
+---
 
-### Live reloading and Sass CSS compilation
+## ⏳ Optional / Not Implemented (Due to Time Constraint)
+The following features were **planned but not completed** within the 24-hour build window:
 
-Moved to [Live reloading and SASS compilation](https://cookiecutter-django.readthedocs.io/en/latest/developing-locally.html#sass-compilation-live-reloading).
+- 📊 **Analytics Dashboard** (click count, creator, timestamps)
+- 🧾 **Tags or Categories** for URLs
+- 🧩 **QR Code Generation**
+- ⚙️ **Rate Limiting / Usage Stats**
+- 🔒 **Private URLs** (access via JWT token only)
 
-### Celery
+---
 
-This app comes with Celery.
+## 🧠 URL Routing Example
 
-To run a celery worker:
+domain.com/<namespace>/<shortcode>/ → Redirects to actual URL
 
-```bash
-cd hirethon_template
-celery -A config.celery_app worker -l info
-```
 
-Please note: For Celery's import magic to work, it is important _where_ the celery commands are run. If you are in the same folder with _manage.py_, you should be right.
+**Example:**
+domain.com/my/cv → https://drive.google.com/file/d/abc123/view
 
-To run [periodic tasks](https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html), you'll need to start the celery beat scheduler service. You can start it as a standalone process:
 
-```bash
-cd hirethon_template
-celery -A config.celery_app beat
-```
+---
 
-or you can embed the beat service inside a worker with the `-B` option (not recommended for production use):
+## 🕐 Hackathon Details
 
-```bash
-cd hirethon_template
-celery -A config.celery_app worker -B -l info
-```
+- 🏁 **Duration:** 24 hours  
+- 🧑‍💻 **Built With:** Django + React  
+- 🎯 **Goal:** Implement maximum core functionality under strict time constraint  
 
-## Deployment
+---
 
-The following details how to deploy this application.
+## 💬 Future Improvements
 
-### Docker
+- Add analytics and QR generation  
+- Integrate Google sign-in  
+- Add category/tag filters and usage statistics  
 
-#### Building the Base Image
+---
 
-Before running the project with Docker, you need to build the base image first:
+## 👨‍💻 Author
 
-```bash
-docker build -t cookiecutter-django-base:latest -f compose/django/Dockerfile.base .
-```
+**Don Jo Rois**  
+Python Django + React Developer  
+*(Hackathon Build - 24 hours)*
 
-This base image contains common dependencies and is used by both local development and production environments.
-
-#### Local Development and Deployment
-
-See detailed [cookiecutter-django Docker documentation](http://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html).
+---
